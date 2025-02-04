@@ -1,0 +1,11 @@
+## Interface: 100000
+## Title: LaZHealer
+## Author: David Honsvick
+## Version: 1.06
+## Notes: Smart healing assistant for healers.
+
+LaZHealer_Core.lua
+LaZHealer_UI.lua
+LaZHealer_Druid.lua
+LaZHealer_Paladin.lua
+
