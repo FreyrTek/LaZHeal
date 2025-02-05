@@ -1,7 +1,7 @@
 -- LaZHealer_UI.lua
 -- Generic UI elements for LaZHealer
 
--- Make sure the main addon table exists.
+-- Ensure the main addon table exists.
 local LaZHealer = _G.LaZHealer
 if not LaZHealer then
     print("LaZHealer_UI: LaZHealer not found! Ensure the core file is loaded first.")
@@ -13,10 +13,10 @@ LaZHealer.UI = LaZHealer.UI or {}
 local UI = LaZHealer.UI
 
 -------------------------------------------------
--- UI Creation
+-- UI Creation (General Frames)
 -------------------------------------------------
 local function CreateUIFrames()
-    print("LaZHealer_UI: Creating generic UI Frames...")
+    print("LaZHealer_UI: Creating generic UI frames...")
 
     -- Main Frame (movable)
     UI.mainFrame = CreateFrame("Frame", "LaZHealerMainFrame", UIParent)
@@ -25,7 +25,9 @@ local function CreateUIFrames()
     UI.mainFrame:SetMovable(true)
     UI.mainFrame:EnableMouse(true)
     UI.mainFrame:RegisterForDrag("LeftButton")
-    UI.mainFrame:SetScript("OnDragStart", function(self) self:StartMoving() end)
+    UI.mainFrame:SetScript("OnDragStart", function(self)
+        self:StartMoving()
+    end)
     UI.mainFrame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         local point, _, relPoint, xOfs, yOfs = self:GetPoint()
@@ -56,20 +58,20 @@ local function CreateUIFrames()
     UI.manaText:SetText("100%")
 
     -------------------------------------------------
-    -- Suggestion Icons (container for up to 3 icons)
+    -- Suggestion Icons (for up to 3 icons)
     -------------------------------------------------
     UI.iconFrames = {}
     local iconSize = 50
     local spacing  = 55
     for i = 1, 3 do
-        local frame = CreateFrame("Frame", "LaZHealerIcon" .. i, UI.mainFrame)
-        frame:SetSize(iconSize, iconSize)
-        frame:SetPoint("TOP", UI.manaBar, "BOTTOM", (i - 2) * spacing, -5)
-        local tex = frame:CreateTexture(nil, "ARTWORK")
+        local iconFrame = CreateFrame("Frame", "LaZHealerIcon" .. i, UI.mainFrame)
+        iconFrame:SetSize(iconSize, iconSize)
+        iconFrame:SetPoint("TOP", UI.manaBar, "BOTTOM", (i - 2) * spacing, -5)
+        local tex = iconFrame:CreateTexture(nil, "ARTWORK")
         tex:SetAllPoints()
-        frame.texture = tex
-        frame:Hide()
-        UI.iconFrames[i] = frame
+        iconFrame.texture = tex
+        iconFrame:Hide()
+        UI.iconFrames[i] = iconFrame
     end
 
     -------------------------------------------------
@@ -80,39 +82,24 @@ local function CreateUIFrames()
     UI.messageText:SetText("LaZHealer Active")
 
     -------------------------------------------------
-    -- Stack Frame (for Abundance buff tracking)
-    --
-    -- This frame displays:
-    --   - The buff icon (on the left),
-    --   - A large number for stacks (stackText) over the icon,
-    --   - A smaller bonus percentage (percentText) to the right.
+    -- Stack Frame (for buff tracking)
     -------------------------------------------------
     UI.stackFrame = CreateFrame("Frame", "LaZHealerStackFrame", UI.mainFrame)
     UI.stackFrame:SetSize(120, 40)
     UI.stackFrame:SetPoint("BOTTOM", UI.manaBar, "TOP", 0, 5)
-    
-    -- Icon for Abundance (placeholder texture; the class file will update it if needed)
     UI.stackFrame.icon = UI.stackFrame:CreateTexture(nil, "ARTWORK")
     UI.stackFrame.icon:SetSize(40, 40)
     UI.stackFrame.icon:SetPoint("LEFT", UI.stackFrame, "LEFT", 0, 0)
     UI.stackFrame.icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-    
-    -- Stack count text (displayed over the icon); set to a large font (e.g., 18pt)
-    UI.stackFrame.stackText = UI.stackFrame:CreateFontString(nil, "OVERLAY")
-    UI.stackFrame.stackText:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    UI.stackFrame.stackText = UI.stackFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     UI.stackFrame.stackText:SetPoint("CENTER", UI.stackFrame.icon, "CENTER", 0, 0)
     UI.stackFrame.stackText:SetText("0")
-    
-    -- Bonus percentage text (displayed to the right of the icon); set to a larger font (e.g., 30pt)
-    UI.stackFrame.percentText = UI.stackFrame:CreateFontString(nil, "OVERLAY")
-    UI.stackFrame.percentText:SetFont("Fonts\\FRIZQT__.TTF", 30, "OUTLINE")
+    UI.stackFrame.percentText = UI.stackFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     UI.stackFrame.percentText:SetPoint("LEFT", UI.stackFrame.icon, "RIGHT", 5, 0)
     UI.stackFrame.percentText:SetText("0%")
-    
-    --UI.stackFrame:Hide()  -- Hide by default; the class module will show it when appropriate.
 
     -------------------------------------------------
-    -- (Optional) PowerBoom Frame (for other class-specific tracking)
+    -- (Optional) PowerBoom Frame (for class-specific tracking)
     -------------------------------------------------
     UI.powerBoomFrame = CreateFrame("Frame", "LaZHealerPowerBoomFrame", UI.mainFrame)
     UI.powerBoomFrame:SetSize(120, 120)
@@ -134,7 +121,6 @@ local function CreateUIFrames()
     UI.powerBoomFrame:Hide()
 end
 
--- Create the UI frames when the player logs in.
 local loginFrame = CreateFrame("Frame")
 loginFrame:RegisterEvent("PLAYER_LOGIN")
 loginFrame:SetScript("OnEvent", function(self, event, ...)
@@ -145,22 +131,14 @@ end)
 
 -------------------------------------------------
 -- Generic UI Update Function
---
--- This function updates elements that are generic to the UI.
--- (It updates the mana bar, suggestion icons, and message text.)
--- Class modules are responsible for updating class-specific elements.
 -------------------------------------------------
 local function UpdateUI()
     if not UI or not UI.mainFrame then return end
-
-    -- Update mana bar
     local currentMana = UnitPower("player", 0)
     local maxMana = UnitPowerMax("player", 0)
     local manaPercent = (maxMana > 0) and (currentMana / maxMana) * 100 or 0
     UI.manaBar:SetValue(manaPercent)
     UI.manaText:SetText(string.format("%d%%", manaPercent))
-
-    -- Update suggestion icons based on the healing evaluation.
     local spells, reason = LaZHealer.EvaluateHealing()
     if spells and #spells > 0 then
         for i = 1, 3 do
@@ -179,109 +157,152 @@ local function UpdateUI()
         end
         UI.messageText:SetText(reason or "No Suggestions")
     end
-
-    -- Note: Updates for UI.stackFrame and UI.powerBoomFrame are handled by class modules.
 end
 
--- Periodically update the generic UI.
 local uiUpdateFrame = CreateFrame("Frame")
 local updateInterval = 0.5
-local timeSinceLast = 0
+local elapsedTime = 0
 uiUpdateFrame:SetScript("OnUpdate", function(self, elapsed)
-    timeSinceLast = timeSinceLast + elapsed
-    if timeSinceLast >= updateInterval then
+    elapsedTime = elapsedTime + elapsed
+    if elapsedTime >= updateInterval then
         if UI and UI.mainFrame and UI.mainFrame:IsShown() then
             UpdateUI()
         end
-        timeSinceLast = 0
+        elapsedTime = 0
     end
 end)
 
 -------------------------------------------------
--- Tank Frames UI
+-- Tank Frames UI (Modern Candy-Like Look)
 -------------------------------------------------
 local function CreateTankFramesUI()
-    print("LaZHealer_UI: Creating Tank Frames UI...")
-    -- Create a container for tank frames
+    print("LaZHealer_UI: Creating Tank Frames...")
+    -- Use LaZHealerSuggestionsFrame if available; otherwise, use mainFrame as anchor.
+    local anchorFrame = (LaZHealerSuggestionsFrame and LaZHealerSuggestionsFrame:IsShown()) and LaZHealerSuggestionsFrame or UI.mainFrame
     UI.tankContainer = CreateFrame("Frame", "LaZHealerTankContainer", UIParent)
-    UI.tankContainer:SetSize(200, 100)  -- Adjust as needed
-    UI.tankContainer:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 50, -50)
+    UI.tankContainer:SetSize(300, 70)  -- Container size; adjust as needed.
+    UI.tankContainer:SetPoint("TOP", anchorFrame, "BOTTOM", 0, -10)
     UI.tankFrames = {}
 end
 
 local function UpdateTankFramesUI()
     if not UI or not UI.tankContainer then return end
+    local groupCount = GetNumGroupMembers()
+    print("UpdateTankFramesUI: Group count =", groupCount)
+    if groupCount == 0 then
+        UI.tankContainer:Hide()
+        return
+    else
+        UI.tankContainer:Show()
+    end
 
-    local tankIndex = 1
-    local numGroup = GetNumGroupMembers()
-    for i = 1, numGroup do
-        local unit = IsInRaid() and "raid"..i or "party"..i
+    local frameWidth = 75    -- 75 pixels wide
+    local frameHeight = 50   -- 50 pixels tall
+    local spacing = 5        -- Horizontal spacing between frames
+    local tanks = {}         -- Temporary table for visible tank frames
+    local count = 0
+
+    for i = 1, groupCount do
+        local unit = IsInRaid() and ("raid" .. i) or ("party" .. i)
         if UnitExists(unit) and UnitGroupRolesAssigned(unit) == "TANK" then
-            local name, class = UnitName(unit), select(2, UnitClass(unit))
+            count = count + 1
+            local name = UnitName(unit)
             local healthPercent = (UnitHealth(unit) / UnitHealthMax(unit)) * 100
 
-            local tankFrame = UI.tankFrames[tankIndex]
+            local tankFrame = UI.tankFrames[count]
             if not tankFrame then
-                tankFrame = CreateFrame("Button", "LaZHealerTankFrame"..tankIndex, UI.tankContainer, "UIPanelButtonTemplate")
-                tankFrame:SetSize(180, 20)  -- Adjust size as needed
-                tankFrame:SetScript("OnClick", function(self)
-                    if UnitExists(self.unit) then
-                        TargetUnit(self.unit)
-                    end
-                end)
-                UI.tankFrames[tankIndex] = tankFrame
+                tankFrame = CreateFrame("Frame", "LaZHealerTankFrame" .. count, UI.tankContainer, "BackdropTemplate")
+                tankFrame:SetSize(frameWidth, frameHeight)
+                -- Apply a custom candy-like border using a custom texture.
+                tankFrame:SetBackdrop({
+                    bgFile = nil,  -- No default background.
+                    edgeFile = "Interface\\AddOns\\LaZHealer\\Textures\\CandyBorder.tga", -- Replace with your custom border texture
+                    edgeSize = 16,
+                    insets = { left = 4, right = 4, top = 4, bottom = 4 }
+                })
+                -- Default border color white (candy look).
+                tankFrame:SetBackdropBorderColor(1, 1, 1, 1)
+                -- Create a background texture for health-based color.
+                tankFrame.bg = tankFrame:CreateTexture(nil, "BACKGROUND")
+                tankFrame.bg:SetAllPoints(tankFrame)
+                tankFrame.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+                -- Create a gradient overlay using a texture.
+                tankFrame.gradient = tankFrame:CreateTexture(nil, "ARTWORK")
+                tankFrame.gradient:SetPoint("TOP", tankFrame, "TOP", 0, -3)  -- 3 pixels from the top.
+                tankFrame.gradient:SetPoint("LEFT", tankFrame, "LEFT")
+                tankFrame.gradient:SetPoint("RIGHT", tankFrame, "RIGHT")
+                tankFrame.gradient:SetHeight(frameHeight * 0.5)  -- Cover top 50% of the frame.
+                tankFrame.gradient:SetTexture("Interface\\AddOns\\LaZHealer\\Textures\\WhiteGradient.tga")
+                -- Create a font string for the tank's name.
+                tankFrame.nameText = tankFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+                tankFrame.nameText:SetPoint("CENTER", tankFrame, "CENTER", 0, 10)
+                tankFrame.nameText:SetJustifyH("CENTER")
+                tankFrame.nameText:SetTextColor(1, 1, 1)
+                -- Create a font string for the health percentage.
+                tankFrame.hpText = tankFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+                tankFrame.hpText:SetPoint("BOTTOM", tankFrame, "BOTTOM", 0, 2)
+                tankFrame.hpText:SetJustifyH("CENTER")
+                UI.tankFrames[count] = tankFrame
             end
 
             tankFrame.unit = unit
-            tankFrame:SetText(name)
-            -- Set button color based on class using RAID_CLASS_COLORS
-            local classColor = RAID_CLASS_COLORS[class] or { r = 1, g = 1, b = 1 }
-            tankFrame:SetNormalFontObject("GameFontNormalSmall")
-            local normTex = tankFrame:GetNormalTexture() or tankFrame:CreateTexture(nil, "BACKGROUND")
-            normTex:SetAllPoints()
-            normTex:SetColorTexture(classColor.r, classColor.g, classColor.b, 1)
-            tankFrame:SetNormalTexture(normTex)
-
-            -- Flash if the tank's health is below 40%
-            if healthPercent < 40 then
-                local alpha = 0.5 + 0.5 * math.abs(math.sin(GetTime() * 2))
-                tankFrame:SetAlpha(alpha)
+            tankFrame.nameText:SetText(name)
+            tankFrame.hpText:SetText(string.format("%.0f%%", healthPercent))
+            
+            -- Update the background color based on health.
+            if healthPercent > 50 then
+                tankFrame.bg:SetColorTexture(0, 0.3, 0, 0.8)  -- Dark green.
             else
-                tankFrame:SetAlpha(1)
+                local flash = math.abs(math.sin(GetTime() * 2))
+                if flash > 0.5 then
+                    tankFrame.bg:SetColorTexture(1, 0, 0, 0.8)  -- Red.
+                else
+                    tankFrame.bg:SetColorTexture(1, 0.4, 0, 0.8)  -- Orange.
+                end
             end
 
-            -- Position the frame within the container
-            tankFrame:SetPoint("TOPLEFT", UI.tankContainer, "TOPLEFT", 0, -((tankIndex - 1) * 22))
+            -- Check for aggro: if UnitThreatSituation >= 2, change border to red.
+            local threat = UnitThreatSituation(unit)
+            if threat and threat >= 2 then
+                tankFrame:SetBackdropBorderColor(1, 0, 0, 1)
+            else
+                tankFrame:SetBackdropBorderColor(1, 1, 1, 1)
+            end
+
             tankFrame:Show()
-            --print("Tank Frame " .. tankIndex .. ": " .. name .. " (" .. math.floor(healthPercent) .. "% HP)")
-            tankIndex = tankIndex + 1
+            tanks[count] = tankFrame
         end
     end
 
-    -- Hide any unused tank frames.
-    for j = tankIndex, #UI.tankFrames do
+    local totalWidth = count * frameWidth + (count - 1) * spacing
+    for i = 1, count do
+        local offset = -totalWidth / 2 + (i - 1) * (frameWidth + spacing) + frameWidth / 2
+        tanks[i]:ClearAllPoints()
+        tanks[i]:SetPoint("CENTER", UI.tankContainer, "CENTER", offset, 0)
+    end
+
+    for j = count + 1, #UI.tankFrames do
         UI.tankFrames[j]:Hide()
     end
 end
 
--- Create an updater frame for the tank UI.
 local tankUpdater = CreateFrame("Frame")
 tankUpdater:RegisterEvent("GROUP_ROSTER_UPDATE")
 tankUpdater:RegisterEvent("UNIT_HEALTH")
+tankUpdater:RegisterEvent("PLAYER_ENTERING_WORLD")
 tankUpdater:SetScript("OnEvent", function(self, event, unit)
+    print("Tank updater event:", event, unit or "")
     UpdateTankFramesUI()
 end)
 
--- Expose these functions in the UI table.
 UI.CreateTankFrames = CreateTankFramesUI
 UI.UpdateTankFrames = UpdateTankFramesUI
 
--- Initialize the tank UI when the player logs in.
 local tankLoginFrame = CreateFrame("Frame")
 tankLoginFrame:RegisterEvent("PLAYER_LOGIN")
 tankLoginFrame:SetScript("OnEvent", function(self, event, ...)
     UI.CreateTankFrames()
     UI.UpdateTankFrames()
-    print("LaZHealer_UI: Tank frames created and updated.")
-    self:UnregisterEvent("PLAYER_LOGIN")
+    print("LaZHealer_UI: Tank Frames created and updated.")
+    self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end)
