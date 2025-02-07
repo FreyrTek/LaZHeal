@@ -1,10 +1,24 @@
 -- LaZHealer_UI.lua
 -- Generic UI elements for LaZHealer
 
+-- Set _debug = 1 to enable dummy tank frames for testing.
+_debug = _debug or 0
+
+-- Debug variables for dummy tank frames (only used if _debug == 1)
+if _debug == 1 then
+    _debugTank1Class   = _debugTank1Class or "DRUID"       -- First dummy tank is a Druid
+    _debugTank2Class   = _debugTank2Class or "DEATHKNIGHT" -- Second dummy tank is a Deathknight
+    _debugTank1Aggro   = (_debugTank1Aggro ~= nil) and _debugTank1Aggro or true
+    _debugTank2Aggro   = (_debugTank2Aggro ~= nil) and _debugTank2Aggro or false
+    _debugTank1Health  = _debugTank1Health or 49  -- Health percentage for dummy tank 1
+    _debugTank2Health  = _debugTank2Health or 100 -- Health percentage for dummy tank 2
+end
+
+-------------------------------------------------
 -- Ensure the main addon table exists.
+-------------------------------------------------
 local LaZHealer = _G.LaZHealer
 if not LaZHealer then
-    print("LaZHealer_UI: LaZHealer not found! Ensure the core file is loaded first.")
     return
 end
 
@@ -16,8 +30,6 @@ local UI = LaZHealer.UI
 -- UI Creation (General Frames)
 -------------------------------------------------
 local function CreateUIFrames()
-    print("LaZHealer_UI: Creating generic UI frames...")
-
     -- Main Frame (movable)
     UI.mainFrame = CreateFrame("Frame", "LaZHealerMainFrame", UIParent)
     UI.mainFrame:SetSize(160, 120)
@@ -125,7 +137,6 @@ local loginFrame = CreateFrame("Frame")
 loginFrame:RegisterEvent("PLAYER_LOGIN")
 loginFrame:SetScript("OnEvent", function(self, event, ...)
     CreateUIFrames()
-    print("LaZHealer_UI: UI frames created.")
     self:UnregisterEvent("PLAYER_LOGIN")
 end)
 
@@ -176,7 +187,6 @@ end)
 -- Tank Frames UI (Modern Candy-Like Look)
 -------------------------------------------------
 local function CreateTankFramesUI()
-    print("LaZHealer_UI: Creating Tank Frames...")
     -- Use LaZHealerSuggestionsFrame if available; otherwise, use mainFrame as anchor.
     local anchorFrame = (LaZHealerSuggestionsFrame and LaZHealerSuggestionsFrame:IsShown()) and LaZHealerSuggestionsFrame or UI.mainFrame
     UI.tankContainer = CreateFrame("Frame", "LaZHealerTankContainer", UIParent)
@@ -187,88 +197,134 @@ end
 
 local function UpdateTankFramesUI()
     if not UI or not UI.tankContainer then return end
+
     local groupCount = GetNumGroupMembers()
-    print("UpdateTankFramesUI: Group count =", groupCount)
     if groupCount == 0 then
         UI.tankContainer:Hide()
-        return
     else
         UI.tankContainer:Show()
     end
 
-    local frameWidth = 75    -- 75 pixels wide
-    local frameHeight = 50   -- 50 pixels tall
-    local spacing = 5        -- Horizontal spacing between frames
-    local tanks = {}         -- Temporary table for visible tank frames
+    local frameWidth = 75    -- width for each tank frame
+    local frameHeight = 50   -- height for each tank frame
+    local spacing = 5        -- horizontal spacing between frames
+    local tanks = {}         -- temporary table for visible tank frames
     local count = 0
 
+    -- Normal (non-dummy) tank frames update (if in a group)
     for i = 1, groupCount do
         local unit = IsInRaid() and ("raid" .. i) or ("party" .. i)
         if UnitExists(unit) and UnitGroupRolesAssigned(unit) == "TANK" then
             count = count + 1
-            local name = UnitName(unit)
-            local healthPercent = (UnitHealth(unit) / UnitHealthMax(unit)) * 100
+            local health = UnitHealth(unit)
+            local maxHealth = UnitHealthMax(unit)
+            local hpPercent = (maxHealth > 0) and (health / maxHealth) * 100 or 0
 
             local tankFrame = UI.tankFrames[count]
             if not tankFrame then
-                tankFrame = CreateFrame("Frame", "LaZHealerTankFrame" .. count, UI.tankContainer, "BackdropTemplate")
+                -- Create as a secure unit button so system keybindings and context menus work.
+                tankFrame = CreateFrame("Button", "LaZHealerTankFrame" .. count, UI.tankContainer, "SecureUnitButtonTemplate")
+                tankFrame:RegisterForClicks("AnyUp")
+                tankFrame:SetAttribute("type1", "target")
+                
                 tankFrame:SetSize(frameWidth, frameHeight)
-                -- Apply a custom candy-like border using a custom texture.
-                tankFrame:SetBackdrop({
-                    bgFile = nil,  -- No default background.
-                    edgeFile = "Interface\\AddOns\\LaZHealer\\Textures\\CandyBorder.tga", -- Replace with your custom border texture
-                    edgeSize = 16,
-                    insets = { left = 4, right = 4, top = 4, bottom = 4 }
-                })
-                -- Default border color white (candy look).
-                tankFrame:SetBackdropBorderColor(1, 1, 1, 1)
-                -- Create a background texture for health-based color.
-                tankFrame.bg = tankFrame:CreateTexture(nil, "BACKGROUND")
-                tankFrame.bg:SetAllPoints(tankFrame)
-                tankFrame.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
-                -- Create a gradient overlay using a texture.
-                tankFrame.gradient = tankFrame:CreateTexture(nil, "ARTWORK")
-                tankFrame.gradient:SetPoint("TOP", tankFrame, "TOP", 0, -3)  -- 3 pixels from the top.
-                tankFrame.gradient:SetPoint("LEFT", tankFrame, "LEFT")
-                tankFrame.gradient:SetPoint("RIGHT", tankFrame, "RIGHT")
-                tankFrame.gradient:SetHeight(frameHeight * 0.5)  -- Cover top 50% of the frame.
-                tankFrame.gradient:SetTexture("Interface\\AddOns\\LaZHealer\\Textures\\WhiteGradient.tga")
-                -- Create a font string for the tank's name.
-                tankFrame.nameText = tankFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-                tankFrame.nameText:SetPoint("CENTER", tankFrame, "CENTER", 0, 10)
-                tankFrame.nameText:SetJustifyH("CENTER")
-                tankFrame.nameText:SetTextColor(1, 1, 1)
-                -- Create a font string for the health percentage.
-                tankFrame.hpText = tankFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-                tankFrame.hpText:SetPoint("BOTTOM", tankFrame, "BOTTOM", 0, 2)
-                tankFrame.hpText:SetJustifyH("CENTER")
+                -- Create border textures (1px top/left/right, 2px bottom)
+                tankFrame.topBorder = tankFrame:CreateTexture(nil, "OVERLAY")
+                tankFrame.topBorder:SetPoint("TOPLEFT", tankFrame, "TOPLEFT", 0, 0)
+                tankFrame.topBorder:SetPoint("TOPRIGHT", tankFrame, "TOPRIGHT", 0, 0)
+                tankFrame.topBorder:SetHeight(1)
+                tankFrame.topBorder:SetColorTexture(0, 0, 0, 1)
+                
+                tankFrame.leftBorder = tankFrame:CreateTexture(nil, "OVERLAY")
+                tankFrame.leftBorder:SetPoint("TOPLEFT", tankFrame, "TOPLEFT", 0, 0)
+                tankFrame.leftBorder:SetPoint("BOTTOMLEFT", tankFrame, "BOTTOMLEFT", 0, 0)
+                tankFrame.leftBorder:SetWidth(1)
+                tankFrame.leftBorder:SetColorTexture(0, 0, 0, 1)
+                
+                tankFrame.rightBorder = tankFrame:CreateTexture(nil, "OVERLAY")
+                tankFrame.rightBorder:SetPoint("TOPRIGHT", tankFrame, "TOPRIGHT", 0, 0)
+                tankFrame.rightBorder:SetPoint("BOTTOMRIGHT", tankFrame, "BOTTOMRIGHT", 0, 0)
+                tankFrame.rightBorder:SetWidth(1)
+                tankFrame.rightBorder:SetColorTexture(0, 0, 0, 1)
+                
+                tankFrame.bottomBorder = tankFrame:CreateTexture(nil, "OVERLAY")
+                tankFrame.bottomBorder:SetPoint("BOTTOMLEFT", tankFrame, "BOTTOMLEFT", 0, 0)
+                tankFrame.bottomBorder:SetPoint("BOTTOMRIGHT", tankFrame, "BOTTOMRIGHT", 0, 0)
+                tankFrame.bottomBorder:SetHeight(2)
+                tankFrame.bottomBorder:SetColorTexture(0, 0, 0, 1)
+                
+                -- Create inner box (inset by 1 px top/left/right and 2 px bottom)
+                tankFrame.innerBox = CreateFrame("Frame", nil, tankFrame)
+                tankFrame.innerBox:SetPoint("TOPLEFT", tankFrame, "TOPLEFT", 1, -1)
+                tankFrame.innerBox:SetPoint("BOTTOMRIGHT", tankFrame, "BOTTOMRIGHT", -1, 2)
+                tankFrame.innerBox.bg = tankFrame.innerBox:CreateTexture(nil, "BACKGROUND")
+                tankFrame.innerBox.bg:SetAllPoints()
+                tankFrame.innerBox.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+                
+                -- Combined text: Name and Health Percentage (centered, white, no outline)
+                tankFrame.innerBox.text = tankFrame.innerBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+                tankFrame.innerBox.text:SetFont("Fonts\\FRIZQT__.TTF", 10)
+                tankFrame.innerBox.text:SetJustifyH("CENTER")
+                tankFrame.innerBox.text:SetJustifyV("MIDDLE")
+                tankFrame.innerBox.text:SetPoint("CENTER", tankFrame.innerBox, "CENTER", 0, 0)
+                
                 UI.tankFrames[count] = tankFrame
+                
+                tankFrame:SetScript("OnUpdate", function(self, elapsed)
+                    local currentTime = GetTime()
+                    if not UnitExists(self.unit) then return end
+                    
+                    local curHealth = UnitHealth(self.unit)
+                    local maxHealth = UnitHealthMax(self.unit)
+                    local hpPercent = (maxHealth > 0) and (curHealth / maxHealth) * 100 or 0
+                    hpPercent = math.floor(hpPercent + 0.5)
+                    
+                    local r, g, b, a
+                    if hpPercent < 50 then
+                        local t = math.abs(math.sin(currentTime * 8))
+                        r = 0.5 + 0.5 * t    -- rapidly pulsing from dark red to yellow
+                        g = 0 + 1 * t
+                        b = 0
+                        a = 0.8
+                    else
+                        local _, class = UnitClass(self.unit)
+                        local classColor = RAID_CLASS_COLORS[class] or { r = 0.5, g = 0.5, b = 0.5 }
+                        if UnitInRange(self.unit) then
+                            r, g, b, a = classColor.r, classColor.g, classColor.b, 0.8
+                        else
+                            r, g, b, a = 0.3, 0.3, 0.3, 0.8
+                        end
+                    end
+                    local topColor = CreateColor(math.min(1, r + 0.1), math.min(1, g + 0.1), math.min(1, b + 0.1), a)
+                    local bottomColor = CreateColor(r * 0.9, g * 0.9, b * 0.9, a)
+                    self.innerBox.bg:SetGradient("VERTICAL", topColor, bottomColor)
+                    
+                    -- If unit has aggro, set border to dark red; otherwise, black.
+                    local threat = UnitThreatSituation(self.unit)
+                    if threat and threat >= 2 then
+                        self.topBorder:SetColorTexture(0.5, 0, 0, 1)
+                        self.leftBorder:SetColorTexture(0.5, 0, 0, 1)
+                        self.rightBorder:SetColorTexture(0.5, 0, 0, 1)
+                        self.bottomBorder:SetColorTexture(0.5, 0, 0, 1)
+                    else
+                        self.topBorder:SetColorTexture(0, 0, 0, 1)
+                        self.leftBorder:SetColorTexture(0, 0, 0, 1)
+                        self.rightBorder:SetColorTexture(0, 0, 0, 1)
+                        self.bottomBorder:SetColorTexture(0, 0, 0, 1)
+                    end
+                    
+                    local name = UnitName(self.unit)
+                    self.innerBox.text:SetText(name .. "\n" .. hpPercent .. "%")
+                    self.innerBox.text:SetTextColor(1, 1, 1, 1)
+                    
+                    self:SetAttribute("unit", self.unit)
+                end)
+            else
+                tankFrame.unit = unit
+                tankFrame:SetAttribute("unit", unit)
             end
 
             tankFrame.unit = unit
-            tankFrame.nameText:SetText(name)
-            tankFrame.hpText:SetText(string.format("%.0f%%", healthPercent))
-            
-            -- Update the background color based on health.
-            if healthPercent > 50 then
-                tankFrame.bg:SetColorTexture(0, 0.3, 0, 0.8)  -- Dark green.
-            else
-                local flash = math.abs(math.sin(GetTime() * 2))
-                if flash > 0.5 then
-                    tankFrame.bg:SetColorTexture(1, 0, 0, 0.8)  -- Red.
-                else
-                    tankFrame.bg:SetColorTexture(1, 0.4, 0, 0.8)  -- Orange.
-                end
-            end
-
-            -- Check for aggro: if UnitThreatSituation >= 2, change border to red.
-            local threat = UnitThreatSituation(unit)
-            if threat and threat >= 2 then
-                tankFrame:SetBackdropBorderColor(1, 0, 0, 1)
-            else
-                tankFrame:SetBackdropBorderColor(1, 1, 1, 1)
-            end
-
             tankFrame:Show()
             tanks[count] = tankFrame
         end
@@ -284,6 +340,119 @@ local function UpdateTankFramesUI()
     for j = count + 1, #UI.tankFrames do
         UI.tankFrames[j]:Hide()
     end
+
+    -- Debug condition: override with two dummy frames if _debug == 1.
+    if _debug == 1 then
+        UI.tankContainer:Show()
+        UI.tankFrames = {}
+
+        local frameWidth = 75
+        local frameHeight = 50
+        local spacing = 5
+
+        for i = 1, 2 do
+            local dummyFrame = CreateFrame("Button", "LaZHealerDummyTankFrame" .. i, UI.tankContainer, "SecureUnitButtonTemplate")
+            dummyFrame:RegisterForClicks("AnyUp")
+            dummyFrame:SetAttribute("type1", "target")
+            dummyFrame:SetAttribute("unit", "player")  -- Dummy unit; adjust as needed.
+            dummyFrame:SetSize(frameWidth, frameHeight)
+            
+            -- Border textures for dummy
+            dummyFrame.topBorder = dummyFrame:CreateTexture(nil, "OVERLAY")
+            dummyFrame.topBorder:SetPoint("TOPLEFT", dummyFrame, "TOPLEFT", 0, 0)
+            dummyFrame.topBorder:SetPoint("TOPRIGHT", dummyFrame, "TOPRIGHT", 0, 0)
+            dummyFrame.topBorder:SetHeight(1)
+            dummyFrame.topBorder:SetColorTexture(0, 0, 0, 1)
+            
+            dummyFrame.leftBorder = dummyFrame:CreateTexture(nil, "OVERLAY")
+            dummyFrame.leftBorder:SetPoint("TOPLEFT", dummyFrame, "TOPLEFT", 0, 0)
+            dummyFrame.leftBorder:SetPoint("BOTTOMLEFT", dummyFrame, "BOTTOMLEFT", 0, 0)
+            dummyFrame.leftBorder:SetWidth(1)
+            dummyFrame.leftBorder:SetColorTexture(0, 0, 0, 1)
+            
+            dummyFrame.rightBorder = dummyFrame:CreateTexture(nil, "OVERLAY")
+            dummyFrame.rightBorder:SetPoint("TOPRIGHT", dummyFrame, "TOPRIGHT", 0, 0)
+            dummyFrame.rightBorder:SetPoint("BOTTOMRIGHT", dummyFrame, "BOTTOMRIGHT", 0, 0)
+            dummyFrame.rightBorder:SetWidth(1)
+            dummyFrame.rightBorder:SetColorTexture(0, 0, 0, 1)
+            
+            dummyFrame.bottomBorder = dummyFrame:CreateTexture(nil, "OVERLAY")
+            dummyFrame.bottomBorder:SetPoint("BOTTOMLEFT", dummyFrame, "BOTTOMLEFT", 0, 0)
+            dummyFrame.bottomBorder:SetPoint("BOTTOMRIGHT", dummyFrame, "BOTTOMRIGHT", 0, 0)
+            dummyFrame.bottomBorder:SetHeight(2)
+            dummyFrame.bottomBorder:SetColorTexture(0, 0, 0, 1)
+            
+            -- Inner box for dummy
+            dummyFrame.innerBox = CreateFrame("Frame", nil, dummyFrame)
+            dummyFrame.innerBox:SetPoint("TOPLEFT", dummyFrame, "TOPLEFT", 1, -1)
+            dummyFrame.innerBox:SetPoint("BOTTOMRIGHT", dummyFrame, "BOTTOMRIGHT", -1, 2)
+            dummyFrame.innerBox.bg = dummyFrame.innerBox:CreateTexture(nil, "BACKGROUND")
+            dummyFrame.innerBox.bg:SetAllPoints()
+            dummyFrame.innerBox.bg:SetTexture("Interface\\Buttons\\WHITE8x8")
+            
+            dummyFrame.innerBox.text = dummyFrame.innerBox:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+            dummyFrame.innerBox.text:SetFont("Fonts\\FRIZQT__.TTF", 10)
+            dummyFrame.innerBox.text:SetJustifyH("CENTER")
+            dummyFrame.innerBox.text:SetJustifyV("MIDDLE")
+            dummyFrame.innerBox.text:SetPoint("CENTER", dummyFrame.innerBox, "CENTER", 0, 0)
+            
+            if i == 1 then
+                dummyFrame.unitClass = _debugTank1Class or "DRUID"
+                dummyFrame.debugAggro = (_debugTank1Aggro ~= nil) and _debugTank1Aggro or true
+                dummyFrame.debugHealth = _debugTank1Health or 49
+                dummyFrame.dummyName = "Meat Shield"
+            else
+                dummyFrame.unitClass = _debugTank2Class or "DEATHKNIGHT"
+                dummyFrame.debugAggro = (_debugTank2Aggro ~= nil) and _debugTank2Aggro or false
+                dummyFrame.debugHealth = _debugTank2Health or 100
+                dummyFrame.dummyName = "Crash Test"
+            end
+
+            dummyFrame:SetScript("OnUpdate", function(self, elapsed)
+                local currentTime = GetTime()
+                local hpPercent = self.debugHealth
+                local r, g, b, a
+                if hpPercent < 50 then
+                    local t = math.abs(math.sin(currentTime * 8))
+                    r = 0.5 + 0.5 * t
+                    g = 0 + 1 * t
+                    b = 0
+                    a = 0.8
+                else
+                    local classColor = RAID_CLASS_COLORS[self.unitClass] or { r = 0.5, g = 0.5, b = 0.5 }
+                    r, g, b, a = classColor.r, classColor.g, classColor.b, 0.8
+                end
+                local topColor = CreateColor(math.min(1, r + 0.1), math.min(1, g + 0.1), math.min(1, b + 0.1), a)
+                local bottomColor = CreateColor(r * 0.9, g * 0.9, b * 0.9, a)
+                self.innerBox.bg:SetGradient("VERTICAL", topColor, bottomColor)
+                
+                if self.debugAggro then
+                    self.topBorder:SetColorTexture(0.5, 0, 0, 1)
+                    self.leftBorder:SetColorTexture(0.5, 0, 0, 1)
+                    self.rightBorder:SetColorTexture(0.5, 0, 0, 1)
+                    self.bottomBorder:SetColorTexture(0.5, 0, 0, 1)
+                else
+                    self.topBorder:SetColorTexture(0, 0, 0, 1)
+                    self.leftBorder:SetColorTexture(0, 0, 0, 1)
+                    self.rightBorder:SetColorTexture(0, 0, 0, 1)
+                    self.bottomBorder:SetColorTexture(0, 0, 0, 1)
+                end
+
+                self.innerBox.text:SetText(self.dummyName .. "\n" .. tostring(hpPercent) .. "%")
+                self.innerBox.text:SetTextColor(1, 1, 1, 1)
+            end)
+
+            dummyFrame:Show()
+            UI.tankFrames[i] = dummyFrame
+        end
+
+        local totalWidth = 2 * frameWidth + spacing
+        for i = 1, 2 do
+            local offset = -totalWidth / 2 + (i - 1) * (frameWidth + spacing) + frameWidth / 2
+            UI.tankFrames[i]:ClearAllPoints()
+            UI.tankFrames[i]:SetPoint("CENTER", UI.tankContainer, "CENTER", offset, 0)
+        end
+    end
 end
 
 local tankUpdater = CreateFrame("Frame")
@@ -291,7 +460,6 @@ tankUpdater:RegisterEvent("GROUP_ROSTER_UPDATE")
 tankUpdater:RegisterEvent("UNIT_HEALTH")
 tankUpdater:RegisterEvent("PLAYER_ENTERING_WORLD")
 tankUpdater:SetScript("OnEvent", function(self, event, unit)
-    print("Tank updater event:", event, unit or "")
     UpdateTankFramesUI()
 end)
 
@@ -303,6 +471,5 @@ tankLoginFrame:RegisterEvent("PLAYER_LOGIN")
 tankLoginFrame:SetScript("OnEvent", function(self, event, ...)
     UI.CreateTankFrames()
     UI.UpdateTankFrames()
-    print("LaZHealer_UI: Tank Frames created and updated.")
     self:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end)
