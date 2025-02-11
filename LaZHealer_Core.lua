@@ -1,4 +1,3 @@
--- LaZHealer_Core.lua
 local addonName, LaZHealer = ...
 -- Expose the LaZHealer table globally so other files can access it
 _G.LaZHealer = LaZHealer
@@ -30,6 +29,14 @@ local function LoadHealingModule()
             LaZHealer.Modules["PALADIN"] = _G.LaZHealer_Paladin
         else
             print("LaZHealer: ERROR - Paladin module not loaded correctly!")
+        end
+    elseif playerClass == "SHAMAN" then
+        if _G.LaZHealer_Shaman and _G.LaZHealer_Shaman.Initialize then
+            print("LaZHealer: Loading Shaman module...")
+            _G.LaZHealer_Shaman.Initialize()
+            LaZHealer.Modules["SHAMAN"] = _G.LaZHealer_Shaman
+        else
+            print("LaZHealer: ERROR - Shaman module not loaded correctly!")
         end
     else
         print("LaZHealer: Your class (" .. playerClass .. ") is not yet supported.")

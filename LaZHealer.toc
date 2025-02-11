@@ -8,4 +8,5 @@ LaZHealer_Core.lua
 LaZHealer_UI.lua
 LaZHealer_Druid.lua
 LaZHealer_Paladin.lua
+LaZHealer_Shaman.lua
 
