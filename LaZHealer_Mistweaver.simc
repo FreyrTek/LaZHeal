@@ -1,0 +1,6 @@
+actions+=/mana_tea,if=mana.pct<30&talent.mana_tea.enabled
+actions+=/vivify,if=target.health.pct<30
+actions+=/enveloping_mist,if=target.health.pct<50
+actions+=/essence_font
+actions+=/renewing_mist
+actions+=/soothing_mist

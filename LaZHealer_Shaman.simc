@@ -1,0 +1,6 @@
+actions+=/ascendance,if=!buff.ascendance.up&talent.ascendance.enabled
+actions+=/riptide,if=target.health.pct<30
+actions+=/healing_surge,if=buff.tidal_waves.up
+actions+=/cloudburst_totem,if=talent.cloudburst_totem.enabled
+actions+=/healing_rain
+actions+=/healing_wave

@@ -1,0 +1,7 @@
+actions+=/rewind,if=target.health.pct<20&talent.rewind.enabled
+actions+=/echo,if=target.health.pct<30&talent.echo.enabled
+actions+=/spiritbloom,if=essence>=3
+actions+=/dream_breath
+actions+=/reversion
+actions+=/verdant_embrace
+actions+=/living_flame

@@ -1,0 +1,9 @@
+actions+=/incarnation_tree_of_life,if=!buff.incarnation_tree_of_life.up&talent.incarnation_tree_of_life.enabled
+actions+=/swiftmend,if=target.health.pct<30
+actions+=/wild_growth,if=prev_gcd.1.swiftmend
+actions+=/mark_of_the_wild,if=!buff.mark_of_the_wild.up
+actions+=/efflorescence,if=!buff.efflorescence.up
+actions+=/lifebloom,if=active_dot.lifebloom<1
+actions+=/regrowth,if=buff.clearcasting.up
+actions+=/rejuvenation
+actions+=/grove_guardians,if=talent.grove_guardians.enabled

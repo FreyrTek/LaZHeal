@@ -1,0 +1,6 @@
+actions+=/avenging_wrath,if=!buff.avenging_wrath.up
+actions+=/beacon_of_light,if=active_dot.beacon_of_light<1
+actions+=/holy_shock,if=target.health.pct<30
+actions+=/word_of_glory,if=holy_power>=3
+actions+=/flash_of_light,if=buff.infusion_of_light.up
+actions+=/holy_light

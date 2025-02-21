@@ -1,4 +1,4 @@
-## Interface: 100000
+## Interface: 110000
 ## Title: LaZHealer
 ## Author: David Honsvick
 ## Version: 1.06
@@ -9,4 +9,10 @@ LaZHealer_UI.lua
 LaZHealer_Druid.lua
 LaZHealer_Paladin.lua
 LaZHealer_Shaman.lua
-
+LaZHealer_Mistweaver.lua
+LaZHealer_Evoker.lua
+LaZHealer_Druid.simc
+LaZHealer_Paladin.simc
+LaZHealer_Shaman.simc
+LaZHealer_Mistweaver.simc
+LaZHealer_Evoker.simc
